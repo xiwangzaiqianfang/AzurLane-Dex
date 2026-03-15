@@ -5,13 +5,13 @@ QMainWindow {
 QTableWidget {
     background-color: white;
     alternate-background-color: #f9f9f9;
-    selection-background-color: #0078d4;
+    selection-background-color: #0067c0;
     selection-color: white;
     gridline-color: #e0e0e0;
 }
 
 QTableWidget::item:selected {
-    background-color: #0078d4;
+    background-color: #3183ca;
 }
 
 QHeaderView::section {
@@ -22,26 +22,51 @@ QHeaderView::section {
 }
 
 QPushButton {
-    background-color: #0078d4;
+    border-radius: 4px;
+    padding: 6px 12px;
+    background-color: #0067c0;
     color: white;
     border: none;
-    padding: 5px 15px;
-    border-radius: 3px;
+    font-weight: 500;
 }
-
 QPushButton:hover {
-    background-color: #106ebe;
+    background-color: #1975c5;
 }
-
 QPushButton:pressed {
-    background-color: #005a9e;
+    background-color: #3183ca;
 }
 
-QComboBox, QSpinBox {
-    padding: 3px;
+QComboBox, QSpinBox, QLineEdit {
+    border-radius: 4px;
+    padding: 4px;
     border: 1px solid #aaa;
-    border-radius: 3px;
-    min-height: 20px;
+    color: #333;
+}
+
+QComboBox:hover, QSpinBox:hover, QLineEdit:hover {
+    border-color: #1975c5;
+}
+
+/* QComboBox 下拉菜单 */
+QComboBox QAbstractItemView {
+    min-width: 100px;
+    margin-top: 4px;
+    border-radius: 4px;
+    border: 1px solid #c0c0c0;
+    background-color: #f9f9f9;
+    outline: none;
+    padding: 4px 0;
+}
+QComboBox QAbstractItemView::item {
+    padding: 6px 12px;
+    color: #333;
+}
+QComboBox QAbstractItemView::item:selected {
+    background-color: #3183ca;
+    color: #000;
+}
+QComboBox QAbstractItemView::item:hover {
+    background-color: #f0f0f0;
 }
 
 QCheckBox {
@@ -69,4 +94,116 @@ QLabel {
 QScrollArea {
     border: none;
     background: transparent;
+}
+
+/* QToolButton 仿 WinUI3 DropDownButton */
+QToolButton {
+    background-color: #0067c0;
+    color: white;
+    border: none;
+    padding: 5px 20px 5px 15px;  /* 右侧留出箭头空间 */
+    border-radius: 3px;
+    font-weight: 500;
+}
+QToolButton:hover {
+    background-color: #1975c5;
+}
+QToolButton:pressed {
+    background-color: #3183ca;
+}
+QToolButton::menu-indicator {
+    width: 22px;                /* 箭头区域宽度 */
+    subcontrol-position: right center;
+    subcontrol-origin: padding;
+    /* 使用内置箭头，无需 image 属性 */
+}
+QToolButton::menu-indicator:open {
+    /* 菜单打开时的箭头样式（可选） */
+}
+
+/* QMenu 仿 WinUI3 弹出菜单 */
+QMenu {
+    background-color: #f9f9f9;
+    border: 1px solid #c0c0c0;
+    border-radius: 4px;
+    padding: 4px 0;
+    margin-top: 4px;
+}
+QMenu::item {
+    padding: 6px 20px;
+    background-color: transparent;
+    color: #333;
+}
+QMenu::item:selected {
+    background-color: #e0e0e0;
+    color: #000;
+}
+QMenu::item:pressed {
+    background-color: #c0c0c0;
+}
+
+QCompleter QAbstractItemView {
+    background-color: #f9f9f9;
+    border: 1px solid #c0c0c0;
+    border-radius: 4px;
+    outline: none;
+    margin-top: 4px;
+}
+QCompleter QAbstractItemView::item {
+    padding: 6px 12px;
+}
+QCompleter QAbstractItemView::item:selected {
+    background-color: #3183ca;
+    color: white;
+}
+
+/* 详情页卡片样式 */
+QWidget#detailWidget QGroupBox {
+    background-color: #f9f9f9;          /* 卡片背景色，略浅于主背景 */
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-top: 10px;                    /* 卡片间距离 */
+    padding-top: 15px;                   /* 为标题留空间 */
+}
+QWidget#detailWidget QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 10px;
+    padding: 0 5px 0 5px;
+    color: #333;
+}
+/* 可选：让卡片内文字颜色一致 */
+QWidget#detailWidget QGroupBox QLabel {
+    color: #333;
+}
+
+/* 卡片样式 */
+QFrame#card {
+    background-color: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin: 0px;
+}
+QLabel#cardTitle {
+    font-weight: bold;
+    color: #333;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #e0e0e0;  /* 可选：添加分隔线 */
+}
+
+/* 高级筛选面板 */
+QWidget#advancedFilterPanel {
+    background-color: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+/* 面板标题 */
+QLabel#panelTitle {
+    font-weight: bold;
+    font-size: 14px;
+    color: #333;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 8px;
 }

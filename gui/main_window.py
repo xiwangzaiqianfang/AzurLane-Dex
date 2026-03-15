@@ -1,9 +1,12 @@
 import sys
 import os
 from PySide6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
-                                QSplitter, QMessageBox, QFileDialog, QApplication, QPushButton, QDialog)
-from PySide6.QtCore import Qt, QSettings, Signal
-from PySide6.QtGui import QFont
+                                QSplitter, QMessageBox, QFileDialog, QApplication, QPushButton, QDialog, QLabel)
+from PySide6.QtCore import Qt, QSettings, QPoint, QPropertyAnimation, QEasingCurve, Signal
+from PySide6.QtGui import QFont, QIcon, QPainter, QBrush, QPen, QColor, QLinearGradient, QPalette, QPixmap
+
+import ctypes
+from ctypes import wintypes
 
 from manager import ShipManager
 from gui.filter_bar import FilterBar
@@ -16,49 +19,115 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("碧蓝航线本地图鉴")
-        self.resize(1200, 800)
+        self.resize(1375, 700)
+        self.setMinimumWidth(800)
 
-        # 初始化设置存储（使用公司名和应用名，可自定义）
-        self.settings = QSettings("菲梦林光", "AzurLanePokedex")
-
-        # 加载样式表
-        #with open("gui/style.qss", "r", encoding='utf-8') as f:
-        #    self.setStyleSheet(f.read())
-
-        # 初始化数据管理器
-        self.manager = ShipManager("ships.json")
+        # 移除默认标题栏
+        #self.setWindowFlags(Qt.FramelessWindowHint)
+        # 允许透明背景（用于圆角）
+        #self.setAttribute(Qt.WA_TranslucentBackground)
+        # 设置调色板透明
+        #palette = self.palette()
+        #palette.setColor(QPalette.Window, QColor(0, 0, 0, 0))  # 完全透明
+        #self.setPalette(palette)
 
         # 创建中央部件
         central = QWidget()
         self.setCentralWidget(central)
         main_layout = QVBoxLayout(central)
 
+        # 主布局
+        #main_layout = QVBoxLayout(central)
+        #main_layout.setContentsMargins(10, 10, 10, 10)  # 留出阴影空间
+        #main_layout.setSpacing(0)
+
+        # ---- 自定义标题栏 ----
+        #self.title_bar = QWidget()
+        #self.title_bar.setFixedHeight(40)
+        #self.title_bar.setObjectName("titleBar")
+        #title_layout = QHBoxLayout(self.title_bar)
+        #title_layout.setContentsMargins(10, 0, 10, 0)
+
+        # 图标和标题
+        #self.icon_label = QLabel()
+        #self.icon_label.setPixmap(QPixmap("ald.ico").scaled(20,20))
+        #title_layout.addWidget(self.icon_label)
+
+        #self.title_label = QLabel("碧蓝航线本地图鉴")
+        #self.title_label.setStyleSheet("color: #f0f0f0; font-weight: bold;")
+        #title_layout.addWidget(self.title_label)
+        #title_layout.addStretch()
+
+        # 窗口控制按钮
+        #self.min_btn = QPushButton("－")
+        #self.max_btn = QPushButton("□")
+        #self.close_btn = QPushButton("×")
+        #for btn in (self.min_btn, self.max_btn, self.close_btn):
+        #    btn.setFixedSize(40, 30)
+        #    btn.setFocusPolicy(Qt.NoFocus)
+        #    btn.setObjectName("titleButton")
+        #self.min_btn.clicked.connect(self.showMinimized)
+        #self.max_btn.clicked.connect(self.toggle_maximize)
+        #self.close_btn.clicked.connect(self.close)
+
+        #title_layout.addWidget(self.min_btn)
+        #title_layout.addWidget(self.max_btn)
+        #title_layout.addWidget(self.close_btn)
+
+        #main_layout.addWidget(self.title_bar)
+        #main_layout.addWidget(self.title_bar, 0)  # 固定高度
+        #main_layout.addWidget(content_widget)
+        #main_layout.addWidget(content_widget, 1)  # 拉伸因子
+        #main_layout.setStretchFactor(content_widget, 1)
+
+        # 加载样式表
+        #with open("gui/style.qss", "r", encoding='utf-8') as f:
+        #    self.setStyleSheet(f.read())
+
+        # ---- 内容区域（原有的所有控件） ----
+        #content_widget = QWidget()
+        #content_layout = QVBoxLayout(content_widget)
+        #content_layout.setContentsMargins(0, 0, 0, 0)
+
         # 顶部工具栏布局（包含筛选栏和主题切换按钮）
         top_layout = QHBoxLayout()
         self.filter_bar = FilterBar()
+        self.filter_bar.fleet_tech_clicked.connect(self.show_fleet_tech)
+        self.filter_bar.theme_toggled.connect(self.toggle_theme)
         top_layout.addWidget(self.filter_bar)
+
+        # 舰队科技
+        #self.fleet_tech_btn = QPushButton("舰队科技")
+        #self.fleet_tech_btn.clicked.connect(self.show_fleet_tech)
+        #top_layout.addWidget(self.fleet_tech_btn)
         
         # 主题切换按钮
-        self.theme_btn = QPushButton("切换主题")
-        self.theme_btn.clicked.connect(self.toggle_theme)
-        top_layout.addWidget(self.theme_btn)
+        #self.theme_btn = QPushButton("切换主题")
+        #self.theme_btn.clicked.connect(self.toggle_theme)
+        #top_layout.addWidget(self.theme_btn)
 
         main_layout.addLayout(top_layout)
 
         # 中间分割区域
-        splitter = QSplitter(Qt.Horizontal)
-        main_layout.addWidget(splitter, 1)  # 拉伸因子1
+        self.splitter = QSplitter(Qt.Horizontal)
+        self.splitter.setHandleWidth(0)
+        self.splitter.setChildrenCollapsible(False)
+        main_layout.addWidget(self.splitter, 1)  # 拉伸因子1
 
         # 左侧列表
         self.ship_list = ShipListWidget()
-        splitter.addWidget(self.ship_list)
+        self.splitter.addWidget(self.ship_list)
 
         # 右侧详情
         self.detail_widget = DetailWidget()
-        splitter.addWidget(self.detail_widget)
+        self.splitter.addWidget(self.detail_widget)
 
         # 设置初始比例
-        splitter.setSizes([300, 900])
+        self.splitter.setSizes([325, 1030])
+        #self.splitter.setHandleWidth(int)
+        self.splitter.setChildrenCollapsible(False)
+        self.splitter.setStretchFactor(0, 0)
+        self.splitter.setStretchFactor(1, 1)
 
         # 连接信号
         self.filter_bar.filter_changed.connect(self.apply_filter)
@@ -74,6 +143,18 @@ class MainWindow(QMainWindow):
         self.ship_list.sort_requested.connect(self.on_sort_requested)
 
         self.detail_widget.data_changed.connect(self.on_ship_updated)
+        
+        #main_layout.addWidget(content_widget)
+        self.setMinimumSize(200, 200)
+        self.ship_list.setMinimumWidth(0)
+        self.detail_widget.setMinimumWidth(0)
+
+        # 初始化设置存储（使用公司名和应用名，可自定义）
+        self.settings = QSettings("菲梦林光", "AzurLaneDex")
+        # 初始化数据管理器
+        self.manager = ShipManager("ships.json")
+        ship_names = [ship.name for ship in self.manager.ships]
+        self.filter_bar.set_ship_names(ship_names)
 
         # 加载主题
         self.load_theme()
@@ -81,11 +162,17 @@ class MainWindow(QMainWindow):
         # 初始加载全部舰船
         self.apply_filter({})
 
+    def show_fleet_tech(self):
+        camp_tech = self.manager.calculate_camp_tech_points()
+        global_bonuses = self.manager.calculate_global_bonuses()
+        from gui.fleet_tech_dialog import FleetTechDialog
+        dlg = FleetTechDialog(camp_tech, global_bonuses, self)
+        dlg.exec()
         
     def load_theme(self):
         """加载保存的主题，并将样式表应用到整个应用"""
         theme = self.settings.value("theme", "light")  # 默认浅色
-        style_file = f"./style_{theme}.qss"
+        style_file = f"style_{theme}.qss"
         # 获取当前文件所在目录的绝对路径
         base_dir = os.path.dirname(__file__)
         style_path = os.path.join(base_dir, style_file)
@@ -109,8 +196,10 @@ class MainWindow(QMainWindow):
         self.repaint()
 
     def apply_filter(self, criteria):
+        print(f"筛选条件: {criteria}")
         filtered = self.manager.filter(criteria)
         # 排序（默认按编号）
+        #print(f"筛选后舰船数: {len(filtered)}")
         filtered = self.manager.sort(filtered, key="id")
         self.ship_list.set_ships(filtered)
         if filtered:
@@ -137,11 +226,13 @@ class MainWindow(QMainWindow):
         self.manager.save()
         # 刷新左侧列表显示
         self.ship_list.update_ship(ship)
-        if ship:
-            print(f"Selected ship: {ship.id}, owned={ship.owned}, oath={ship.oath}, level120={ship.level_120}")
+        if self.ship_list.currentRow() >= 0 and self.ship_list.current_ships[self.ship_list.currentRow()].id == ship.id:
             self.detail_widget.set_ship(ship)
-        else:
-            self.detail_widget.clear()
+        #if ship:
+        #    print(f"Selected ship: {ship.id}, owned={ship.owned}, oath={ship.oath}, level120={ship.level_120}")
+        #    self.detail_widget.set_ship(ship)
+        #else:
+        #    self.detail_widget.clear()
 
         # 连接信号（确保在创建 detail_widget 之后）
         #self.detail_widget.data_changed.connect(self.on_ship_updated)
@@ -152,8 +243,8 @@ class MainWindow(QMainWindow):
         self.ship_list.set_ships(sorted_ships)
 
     def show_stat_dialog(self):
-        not_owned, not_max = self.manager.stats()
-        dlg = StatDialog(not_owned, not_max, self)
+        stats_dict = self.manager.stats()
+        dlg = StatDialog(stats_dict, self)
         dlg.exec()
 
     def show_add_ship_dialog(self):
@@ -162,8 +253,12 @@ class MainWindow(QMainWindow):
         if dlg.exec() == QDialog.Accepted:
             print("用户点击确定")
             new_ship = dlg.get_ship()
+            if new_ship is None:
+                return
             print(f"获取到新船: {new_ship.name}")
             self.manager.add_ship(new_ship)
+            ship_names = [ship.name for ship in self.manager.ships]
+            self.filter_bar.set_ship_names(ship_names)
             print("已调用 manager.add_ship")
             # 刷新列表（可能需要重新应用当前筛选）
             self.apply_filter(self.filter_bar.get_criteria())
@@ -175,6 +270,8 @@ class MainWindow(QMainWindow):
         if path:
             try:
                 self.manager.switch_file(path)
+                ship_names = [ship.name for ship in self.manager.ships]
+                self.filter_bar.set_ship_names(ship_names)
                 self.apply_filter({})
             except Exception as e:
                 QMessageBox.critical(self, "错误", f"加载文件失败: {e}")
@@ -184,8 +281,12 @@ class MainWindow(QMainWindow):
         if path:
             if path.endswith('.csv'):
                 self.manager.export_csv(path)
+                ship_names = [ship.name for ship in self.manager.ships]
+                self.filter_bar.set_ship_names(ship_names)
             elif path.endswith('.xlsx'):
                 self.manager.export_excel(path)
+                ship_names = [ship.name for ship in self.manager.ships]
+                self.filter_bar.set_ship_names(ship_names)
             QMessageBox.information(self, "完成", "导出成功！")
 
     def import_data(self):
@@ -193,6 +294,8 @@ class MainWindow(QMainWindow):
         if path:
             try:
                 self.manager.import_csv(path)  # 仅支持 CSV，Excel 也可用 pandas 读取
+                ship_names = [ship.name for ship in self.manager.ships]
+                self.filter_bar.set_ship_names(ship_names)
                 self.apply_filter({})
                 QMessageBox.information(self, "完成", "导入成功！")
             except Exception as e:
@@ -216,6 +319,8 @@ class MainWindow(QMainWindow):
             QApplication.setOverrideCursor(Qt.WaitCursor)
             success = self.manager.update_from_github(default_url)
             if success:
+                ship_names = [ship.name for ship in self.manager.ships]
+                self.filter_bar.set_ship_names(ship_names)
                 self.apply_filter(self.filter_bar.get_criteria())
                 QMessageBox.information(self, "完成", "数据更新成功！")
             else:
@@ -224,3 +329,78 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "错误", f"更新失败：{str(e)}")
         finally:
             QApplication.restoreOverrideCursor()
+
+    def closeEvent(self, event):
+        """窗口关闭时保存大小和位置"""
+        self.settings.setValue("window_geometry", self.saveGeometry())
+        super().closeEvent(event)
+
+    def showEvent(self, event):
+        """窗口显示时恢复上次的大小和位置"""
+        geometry = self.settings.value("window_geometry")
+        if geometry:
+            self.restoreGeometry(geometry)
+        super().showEvent(event)
+
+    #def resizeEvent(self, event):
+    #    super().resizeEvent(event)
+    #    print(f"窗口尺寸: {self.width()} x {self.height()}")
+    #    print(f"窗口最小宽度: {self.minimumWidth()}")
+    #    print(f"左侧列表最小宽度: {self.ship_list.minimumWidth()}")
+    #    print(f"右侧详情最小宽度: {self.detail_widget.minimumWidth()}")
+    #    if hasattr(self, 'splitter'):
+    #        sizes = self.splitter.sizes()
+    #        print(f"分割器当前分配: {sizes[0]} / {sizes[1]}")
+    #    else:
+    #        print("splitter 不是实例变量")
+
+    #def mousePressEvent(self, event):
+    #    if event.button() == Qt.LeftButton and event.pos().y() <= self.title_bar.height():
+    #        self.drag_pos = event.globalPosition().toPoint()
+    #        event.accept()
+    #    else:
+    #        super().mousePressEvent(event)
+
+    #def mouseMoveEvent(self, event):
+    #    if event.buttons() == Qt.LeftButton and hasattr(self, 'drag_pos'):
+    #        self.move(self.pos() + event.globalPosition().toPoint() - self.drag_pos)
+    #        self.drag_pos = event.globalPosition().toPoint()
+    #        event.accept()
+    #    else:
+    #        super().mouseMoveEvent(event)
+
+    #def toggle_maximize(self):
+    #    if self.isMaximized():
+    #        self.showNormal()
+    #        self.max_btn.setText("□")
+            # 恢复圆角（通过样式表或代码）
+    #        self.setStyleSheet(self.styleSheet() + "MainWindow { border-radius: 10px; }")
+    #    else:
+    #        self.showMaximized()
+    #        self.max_btn.setText("❐")
+            # 最大化时移除圆角
+    #        self.setStyleSheet(self.styleSheet() + "MainWindow { border-radius: 0px; }")
+
+    #def showEvent(self, event):
+    #    super().showEvent(event)
+    #    self.enable_acrylic()
+
+    #def enable_acrylic(self):
+    #    """启用 Windows 亚克力效果（适用于 Win10 1809+）"""
+    #    try:
+    #        import ctypes
+    #        from ctypes import wintypes
+    #        dwmapi = ctypes.windll.dwmapi
+            # 亚克力效果属性
+    #        DWMWA_USE_HOSTBACKDROPBRUSH = 37
+    #        value = ctypes.c_int(1)
+    #        hwnd = int(self.winId())
+    #        dwmapi.DwmSetWindowAttribute(
+    #            wintypes.HWND(hwnd),
+    #            DWMWA_USE_HOSTBACKDROPBRUSH,
+    #            ctypes.byref(value),
+    #            ctypes.sizeof(value)
+    #        )
+    #        print("亚克力效果已启用")
+    #    except Exception as e:
+    #        print(f"亚克力效果不可用: {e}")

@@ -124,6 +124,13 @@ class ShipManager:
         """保存到 JSON，包含版本号，使用原子写入防止文件损坏"""
         # 检查 self.ships 是否全部是 Ship 对象
         for i, s in enumerate(self.ships):
+            d = s.to_dict()
+            for k, v in d.items():
+                if hasattr(v, '__class__') and v.__class__.__name__ == '_MISSING_TYPE':
+                    print(f"发现 _MISSING_TYPE 在 ship[{i}], 字段 {k}, 值 {v}")
+                    # 可以在这里将该字段设为默认值，避免崩溃
+                    # d[k] = 0  # 或根据类型设置
+                    # 但更好的是在数据源头修复
             if not isinstance(s, Ship):
                 print(f"错误: ships[{i}] 不是 Ship 对象: {s}")
                 # 这里可以选择抛出异常或尝试修复
@@ -162,6 +169,7 @@ class ShipManager:
                 tech_reload_obtain=0, tech_reload_max=0, tech_reload_120=0,
                 tech_mobility_obtain=0, tech_mobility_max=0, tech_mobility_120=0,
                 tech_antisub_obtain=0, tech_antisub_max=0, tech_antisub_120=0,
+                bonus_obtain=[], bonus_120=[], tech_affects=["驱逐"],
                 image_path="images/bulin.png"
             ),
             Ship(
@@ -176,7 +184,23 @@ class ShipManager:
                 tech_reload_obtain=0, tech_reload_max=0, tech_reload_120=0,
                 tech_mobility_obtain=0, tech_mobility_max=0, tech_mobility_120=0,
                 tech_antisub_obtain=0, tech_antisub_max=0, tech_antisub_120=0,
+                bonus_obtain=[], bonus_120=[], tech_affects=["驱逐"],
                 image_path="images/trial_bulin_mkii.png"
+            ),
+            Ship(
+                id=3, name="特装型布里MKIII", faction="其他", ship_class="驱逐", rarity="海上传奇",
+                owned=False, breakthrough=0, oath=False, level_120=False, acquire_main="兑换、赠送", acquire_detail="世界巡游赠送、带有UR的大型EX活动累计PT获取、布里支援计划、商店兑换", shop_exchange="原型商店", debut_event="蝶海梦花", release_date="2020年09月17日", notes="无法建造",
+                tech_durability_obtain=0, tech_durability_max=0, tech_durability_120=0,
+                tech_firepower_obtain=0, tech_firepower_max=0, tech_firepower_120=0,
+                tech_torpedo_obtain=0, tech_torpedo_max=0, tech_torpedo_120=0,
+                tech_aa_obtain=0, tech_aa_max=0, tech_aa_120=0,
+                tech_aviation_obtain=0, tech_aviation_max=0, tech_aviation_120=0,
+                tech_accuracy_obtain=0, tech_accuracy_max=0, tech_accuracy_120=0,
+                tech_reload_obtain=0, tech_reload_max=0, tech_reload_120=0,
+                tech_mobility_obtain=0, tech_mobility_max=0, tech_mobility_120=0,
+                tech_antisub_obtain=0, tech_antisub_max=0, tech_antisub_120=0,
+                bonus_obtain=[], bonus_120=[], tech_affects=["驱逐"],
+                image_path="images/specialized_bulin_mkiii.png"
             )
         ]
         self.ships = sample
@@ -206,6 +230,16 @@ class ShipManager:
                 result = [s for s in result if s.is_max_breakthrough()]
             elif field == "level_120" and value:
                 result = [s for s in result if s.level_120]
+            elif field == "name_contains" and value:
+                result = [s for s in result if value.lower() in s.name.lower()]
+            elif field == "not_owned" and value:
+                result = [s for s in result if not s.owned]
+            elif field == "not_max" and value:
+                result = [s for s in result if s.owned and not s.is_max_breakthrough()]
+            elif field == "not_level120" and value:
+                result = [s for s in result if s.owned and not s.level_120]
+            elif field == "can_remodel_not" and value:
+                result = [s for s in result if s.can_remodel and not s.remodeled]
         return result
 
     def sort(self, ships: list[Ship], key: str, reverse: bool = False) -> list[Ship]:
@@ -216,13 +250,139 @@ class ShipManager:
         elif key == "rarity":
             rarity_order = {"普通":1, "稀有":2, "精锐":3, "超稀有":4, "海上传奇":5}
             return sorted(ships, key=lambda s: rarity_order.get(s.rarity, 0), reverse=reverse)
+        elif key == "oath":
+            # 按誓约状态排序，True 排在前还是后取决于 reverse
+            return sorted(ships, key=lambda s: s.oath, reverse=reverse)
         return ships
+    
+    def calculate_fleet_tech(self):
+        """
+        计算所有已获得舰船的科技点总和
+        返回: (camp_tech, global_bonus)
+            camp_tech: dict, 键为阵营，值为该阵营各项科技点总和（字典）
+            global_bonus: dict, 键为科技属性，值为全舰队加成总和（获得+120级）
+        """
+        # 初始化数据结构
+        camps = set(s.faction for s in self.ships)
+        camp_tech = {camp: {
+            'durability': 0, 'firepower': 0, 'torpedo': 0, 'aa': 0,
+            'aviation': 0, 'accuracy': 0, 'reload': 0, 'mobility': 0, 'antisub': 0
+        } for camp in camps}
+
+        global_bonus = {
+            'durability': 0, 'firepower': 0, 'torpedo': 0, 'aa': 0,
+            'aviation': 0, 'accuracy': 0, 'reload': 0, 'mobility': 0, 'antisub': 0
+        }
+
+        for ship in self.ships:
+            if not ship.owned:
+                continue
+            faction = ship.faction
+            # 科技点累加（三阶段全加）
+            camp_tech[faction]['durability'] += ship.tech_durability_obtain + ship.tech_durability_max + ship.tech_durability_120
+            camp_tech[faction]['firepower']   += ship.tech_firepower_obtain + ship.tech_firepower_max + ship.tech_firepower_120
+            camp_tech[faction]['torpedo']     += ship.tech_torpedo_obtain + ship.tech_torpedo_max + ship.tech_torpedo_120
+            camp_tech[faction]['aa']          += ship.tech_aa_obtain + ship.tech_aa_max + ship.tech_aa_120
+            camp_tech[faction]['aviation']    += ship.tech_aviation_obtain + ship.tech_aviation_max + ship.tech_aviation_120
+            camp_tech[faction]['accuracy']    += ship.tech_accuracy_obtain + ship.tech_accuracy_max + ship.tech_accuracy_120
+            camp_tech[faction]['reload']      += ship.tech_reload_obtain + ship.tech_reload_max + ship.tech_reload_120
+            camp_tech[faction]['mobility']    += ship.tech_mobility_obtain + ship.tech_mobility_max + ship.tech_mobility_120
+            camp_tech[faction]['antisub']     += ship.tech_antisub_obtain + ship.tech_antisub_max + ship.tech_antisub_120
+
+            # 全舰队加成（获得 + 120级）
+            global_bonus['durability'] += ship.tech_durability_obtain + ship.tech_durability_120
+            global_bonus['firepower']   += ship.tech_firepower_obtain + ship.tech_firepower_120
+            global_bonus['torpedo']     += ship.tech_torpedo_obtain + ship.tech_torpedo_120
+            global_bonus['aa']          += ship.tech_aa_obtain + ship.tech_aa_120
+            global_bonus['aviation']    += ship.tech_aviation_obtain + ship.tech_aviation_120
+            global_bonus['accuracy']    += ship.tech_accuracy_obtain + ship.tech_accuracy_120
+            global_bonus['reload']      += ship.tech_reload_obtain + ship.tech_reload_120
+            global_bonus['mobility']    += ship.tech_mobility_obtain + ship.tech_mobility_120
+            global_bonus['antisub']     += ship.tech_antisub_obtain + ship.tech_antisub_120
+
+        return camp_tech, global_bonus
+    
+    def calculate_camp_tech_points(self):
+        """计算每个阵营的科技点总和（所有已拥有船的三阶段科技点之和）"""
+        camp_tech = {}
+        for ship in self.ships:
+            if ship.owned:
+                faction = ship.faction
+                total = ship.tech_points_obtain + ship.tech_points_max + ship.tech_points_120
+                camp_tech[faction] = camp_tech.get(faction, 0) + total
+        return camp_tech
+    
+    def calculate_global_bonuses(self):
+        """
+        计算全舰队属性加成
+        返回字典：{(舰种, 属性): 总值}
+        """
+        bonuses = {}
+        for ship in self.ships:
+            if not ship.owned:
+                continue
+            affects = ship.tech_affects if ship.tech_affects else []
+            if not affects:
+                continue
+            # 遍历九个属性
+            for base_display, base_key in [
+                ("耐久", "durability"), ("炮击", "firepower"), ("雷击", "torpedo"),
+                ("防空", "aa"), ("航空", "aviation"), ("命中", "accuracy"),
+                ("装填", "reload"), ("机动", "mobility"), ("反潜", "antisub")
+            ]:
+                # 获得时加成
+                obtain = getattr(ship, f"tech_{base_key}_obtain", 0)
+                if obtain != 0:
+                    for sc in affects:
+                        key = (sc, base_display)
+                        bonuses[key] = bonuses.get(key, 0) + obtain
+                # 120级加成
+                val_120 = getattr(ship, f"tech_{base_key}_120", 0)
+                if val_120 != 0:
+                    for sc in affects:
+                        key = (sc, base_display)
+                        bonuses[key] = bonuses.get(key, 0) + val_120
+        return bonuses
+
+    def _parse_and_add_bonus(self, bonuses_dict, bonus_str):
+        """
+        解析加成字符串，如 "驱逐耐久+1"，并累加到 bonuses_dict
+        格式：舰种属性+数值
+        """
+        import re
+        # 简单解析：假设格式为 "舰种属性+数值"，例如 "驱逐耐久+1"
+        match = re.match(r'([^\d]+)([+-]?\d+)', bonus_str)
+        if match:
+            key_part = match.group(1)  # 例如 "驱逐耐久"
+            value = int(match.group(2))
+            # 进一步分离舰种和属性：可以约定舰种和属性之间无分隔，需要预定义列表
+            # 但为了简单，我们暂时将整个 key_part 作为标识，或者由用户输入时直接分两部分
+            # 建议在对话框中使用两个下拉框选择舰种和属性，然后自动生成字符串
+            # 这里我们简化处理：直接存储字符串，显示时原样显示
+            bonuses_dict[key_part] = bonuses_dict.get(key_part, 0) + value
 
     def stats(self):
+        total = len(self.ships)
+        owned = [s for s in self.ships if s.owned]
         not_owned = [s for s in self.ships if not s.owned]
-        owned_not_max = [s for s in self.ships if s.owned and not s.is_max_breakthrough()]
-        return len(not_owned), len(owned_not_max)
-
+        max_break = [s for s in owned if s.is_max_breakthrough()]
+        not_max = [s for s in owned if not s.is_max_breakthrough()]
+        oath = [s for s in self.ships if s.oath]
+        remodeled = [s for s in self.ships if s.remodeled]
+        can_remodel_not = [s for s in self.ships if s.can_remodel and not s.remodeled]
+        level120 = [s for s in self.ships if s.level_120]
+        return {
+            'total': total,
+            'owned': len(owned),
+            'not_owned': len(not_owned),
+            'max_break': len(max_break),
+            'not_max': len(not_max),
+            'oath': len(oath),
+            'remodeled': len(remodeled),
+            'can_remodel_not': len(can_remodel_not),
+            'level120': len(level120),
+        }
+    
     def add_ship(self, ship: Ship):
         """添加新船，若 ship.id 为 0 则自动分配，否则检查冲突并可能自动调整"""
         existing_ids = {s.id for s in self.ships}

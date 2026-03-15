@@ -8,9 +8,20 @@ class ShipListWidget(QTableWidget):
 
     def __init__(self):
         super().__init__()
-        self.setColumnCount(4)
-        self.setHorizontalHeaderLabels(["编号", "名称", "拥有", "突破"])
-        self.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.setColumnCount(5)
+        self.setHorizontalHeaderLabels(["编号", "名称", "拥有", "突破", "誓约"])
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
+        self.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
+        self.horizontalHeader().setSectionResizeMode(3, QHeaderView.Fixed)
+        self.horizontalHeader().setSectionResizeMode(4, QHeaderView.Fixed)
+        self.horizontalHeader().setStretchLastSection(False)
+        self.setColumnWidth(0, 50)
+        self.setColumnWidth(1, 100)
+        self.setColumnWidth(2, 50)
+        self.setColumnWidth(3, 50)
+        self.setColumnWidth(4, 50)
         self.horizontalHeader().setSortIndicatorShown(True)
         self.horizontalHeader().sortIndicatorChanged.connect(self.on_sort_indicator_changed)
         self.setSelectionBehavior(QTableWidget.SelectRows)
@@ -42,6 +53,11 @@ class ShipListWidget(QTableWidget):
             bt_item.setData(Qt.UserRole, ship.breakthrough)
             self.setItem(row, 3, bt_item)
 
+            oath_item = QTableWidgetItem("❤" if ship.oath else "✗")
+            oath_item.setTextAlignment(Qt.AlignCenter)
+            oath_item.setData(Qt.UserRole, ship.oath)  # 存储布尔值用于排序
+            self.setItem(row, 4, oath_item)
+
         # 默认选中第一行
         if ships:
             self.selectRow(0)
@@ -61,6 +77,8 @@ class ShipListWidget(QTableWidget):
                 bt_text = "满破" if ship.breakthrough == 3 else str(ship.breakthrough)
                 self.item(row, 3).setText(bt_text)
                 self.item(row, 3).setData(Qt.UserRole, ship.breakthrough)
+                self.item(row, 4).setText("❤" if ship.oath else "✗")
+                self.item(row, 4).setData(Qt.UserRole, ship.oath)
                 # 如果当前选中的就是这一行，可以更新详情（但为避免循环，通常不需要）
                 break
 
@@ -76,7 +94,7 @@ class ShipListWidget(QTableWidget):
 
     def on_sort_indicator_changed(self, logicalIndex, order):
         # 根据列索引确定排序字段
-        key_map = {0: "id", 1: "name", 3: "rarity"}  # 突破列也可以排序，但这里简化
+        key_map = {0: "id", 1: "name", 3: "rarity", 4: "oath"}  # 突破列也可以排序，但这里简化
         if logicalIndex in key_map:
             reverse = (order == Qt.DescendingOrder)
             self.sort_requested.emit(key_map[logicalIndex], reverse)
